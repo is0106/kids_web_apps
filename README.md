@@ -1,2 +1,57 @@
-# kids_web_apps
-GAI generated web applications for education
+Minecraft 風格題庫遊戲 - 使用說明書
+這是一個輕量級、免安裝的網頁遊戲生成器。你可以手動修改題庫，也可以結合 Google NotebookLM 自動從講義出題。
+🚀 1. 如何開始遊戲
+ * 取得檔案：將提供的 index.html 檔案下載到你的電腦。
+ * 開啟遊戲：直接用滑鼠點兩下 index.html，它會用你的預設瀏覽器（Chrome, Edge, Safari 等）開啟。
+ * 開始遊玩：預設已經內建 3 題範例，點擊「開始冒險」即可試玩。
+🤖 2. 如何使用 NotebookLM 自動出題
+這個遊戲最強大的地方在於可以「匯入題庫」。請依照以下步驟操作：
+ * 前往 NotebookLM。
+ * 上傳你的講義、PDF、網站連結或筆記。
+ * 在下方的對話框輸入以下 「專用咒語」：
+   請根據來源資料，生成 5 到 10 題單選題。
+請嚴格遵守以下 JSON 格式陣列輸出，不要包含 Markdown 標記，只要純文字即可：
+
+[
+  {
+    "question": "這裡填問題內容",
+    "options": ["選項A", "選項B", "選項C"],
+    "correctAnswer": 0,
+    "monsterName": "Lv.1 知識史萊姆"
+  }
+]
+
+規則：
+1. options 必須剛好 3 個選項。
+2. correctAnswer 請填入正確答案的數字索引（0 代表第 1 個選項，1 代表第 2 個，2 代表第 3 個）。
+3. monsterName 請發揮創意，例如 "Lv.99 期末考大魔王" 或 "Lv.5 代數哥布林"。
+
+ * NotebookLM 會吐出一長串包含 [ 和 ] 的文字。
+ * 複製 那段文字。
+ * 回到遊戲網頁，點擊 「📋 匯入 NotebookLM 題庫」。
+ * 貼上 文字，按下「確認載入」。
+ * 成功！你的筆記現在變成 RPG 遊戲了。
+🌐 3. 如何分享給學生/朋友 (產生網址)
+如果你想讓別人用手機也能玩，你需要把這個檔案變成一個網址。
+最簡單的方法 (Tiiny.host)：
+ * 進入 Tiiny.host。
+ * 將 index.html 拖拉到網頁中間的上傳框。
+ * 輸入一個你喜歡的名字（例如 my-math-game）。
+ * 點擊 Upload。
+ * 幾秒後，你就會獲得一個網址（例如 my-math-game.tiiny.site）。
+ * 把網址傳給學生，他們就能用手機玩了！
+🛠️ 4. 進階：手動修改題目
+如果你懂一點點電腦操作，你可以直接修改 index.html 來永久儲存題目：
+ * 對著 index.html 按右鍵，選擇「用記事本開啟」或「用 VS Code 開啟」。
+ * 搜尋 const DEFAULT_QUESTIONS。
+ * 你會看到題目列表，直接修改引號內的文字即可。
+ * 存檔後重新開啟網頁，預設題目就會變成你修改的樣子。
+<!-- end list -->
+// 範例格式
+{
+    question: "你的問題",
+    options: ["選項1", "選項2", "選項3"],
+    correctAnswer: 0, // 正確答案是第幾個 (0, 1, 2)
+    monsterName: "怪物名稱"
+},
+

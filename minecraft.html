@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 知識試煉 (離線版)</title>
+    <style>
+        /* --- 1. 遊戲核心樣式 (CSS) --- */
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        body {
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'VT323', 'Courier New', monospace;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* 按鈕樣式 (模擬 Minecraft) */
+        .btn {
+            background-color: #4a4a4a;
+            color: white;
+            border: 4px solid #000;
+            padding: 15px 20px;
+            font-size: 24px;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: inset -4px -4px 0px 0px rgba(0,0,0,0.5);
+            text-align: left;
+            width: 100%;
+            margin-bottom: 10px;
+            transition: transform 0.1s;
+        }
+        .btn:hover { background-color: #5a5a5a; }
+        .btn:active { 
+            transform: translateY(4px); 
+            box-shadow: inset 4px 4px 0px 0px rgba(0,0,0,0.5);
+        }
+        .btn-green { background-color: #2e7d32; border-color: #1b5e20; }
+        .btn-green:hover { background-color: #388e3c; }
+        
+        .btn-import { background-color: #222; color: #aaa; font-size: 20px; text-align: center;}
+
+        /* 容器與佈局 */
+        .container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        /* 標題特效 */
+        h1 {
+            font-size: 60px;
+            color: #ffd700;
+            text-shadow: 4px 4px 0 #000;
+            margin-bottom: 30px;
+            line-height: 1;
+        }
+
+        /* 遊戲狀態列 */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border: 2px solid #444;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        /* 愛心血條 */
+        .hearts { color: #f44336; font-size: 24px; letter-spacing: 5px; }
+        .xp-text { color: #76ff03; font-size: 24px; }
+
+        /* 怪物區 */
+        .monster-area {
+            height: 250px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .monster-name {
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border: 1px solid #666;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .monster-svg { width: 120px; height: 120px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); transition: transform 0.2s; }
+        
+        /* 問題區 */
+        .question-box {
+            background: #222;
+            border: 4px solid #555;
+            padding: 20px;
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .question-label {
+            position: absolute;
+            top: -12px;
+            left: 10px;
+            background: #555;
+            padding: 0 5px;
+            font-size: 14px;
+        }
+        .question-text { font-size: 28px; line-height: 1.4; color: #ddd; margin: 0; }
+
+        /* 輸入框 */
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: #111;
+            color: #0f0;
+            border: 4px solid #555;
+            font-family: monospace;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: none;
+            font-size: 14px;
+        }
+
+        /* 動畫 */
+        .shake { animation: shake 0.5s; }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        
+        .hit-effect {
+            position: absolute;
+            font-size: 40px;
+            color: #ffeb3b;
+            font-weight: bold;
+            animation: bounce 0.5s;
+            text-shadow: 2px 2px 0 #000;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.5); }
+        }
+
+        /* 隱藏/顯示控制 */
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN 1: START (開始畫面) -->
+    <div id="screen-start" class="container screen active">
+        <h1>知識試煉</h1>
+        <p style="color:#aaa; margin-bottom: 30px;">MINECRAFT QUIZ BATTLE</p>
+        
+        <button class="btn btn-green" style="text-align: center;" onclick="startGame()">開始冒險</button>
+        <button class="btn btn-import" onclick="showImportScreen()">📋 匯入 NotebookLM 題庫</button>
+        
+        <p id="question-count-display" style="color: #666; margin-top: 20px; font-size: 14px;">目前題庫：預設範例 (3 題)</p>
+    </div>
+
+    <!-- SCREEN 2: IMPORT (匯入畫面) -->
+    <div id="screen-import" class="container screen">
+        <h2 style="color: #ffd700;">匯入題庫</h2>
+        <p style="color: #aaa; font-size: 16px;">請貼上 NotebookLM 生成的 JSON 格式：</p>
+        <textarea id="json-input" placeholder='[ 
+  { 
+    "question": "題目內容...", 
+    "options": ["選項1", "選項2", "選項3"], 
+    "correctAnswer": 0, 
+    "monsterName": "Lv.1 史萊姆" 
+  } 
+]'></textarea>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn" style="text-align: center;" onclick="showStartScreen()">取消</button>
+            <button class="btn btn-green" style="text-align: center;" onclick="processImport()">確認載入</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: GAME (遊戲主畫面) -->
+    <div id="screen-game" class="container screen">
+        <!-- 狀態列 -->
+        <div class="status-bar">
+            <div id="hearts-container" class="hearts">❤❤❤❤❤</div>
+            <div id="xp-display" class="xp-text">XP: 0</div>
+        </div>
+
+        <!-- 怪物區 -->
+        <div class="monster-area">
+            <div id="monster-name" class="monster-name">Lv.1 怪物</div>
+            <div id="monster-visual">
+                <!-- SVG 會由 JS 動態插入 -->
+            </div>
+            <div id="hit-feedback" class="hit-effect hidden">-100 HP!</div>
+        </div>
+
+        <!-- 問題區 -->
+        <div class="question-box">
+            <div class="question-label">問題</div>
+            <p id="q-text" class="question-text">載入中...</p>
+        </div>
+
+        <!-- 選項 -->
+        <div id="options-container">
+            <!-- 按鈕由 JS 生成 -->
+        </div>
+    </div>
+
+    <!-- SCREEN 4: END (結算畫面) -->
+    <div id="screen-end" class="container screen">
+        <h1 id="end-title">試煉結束</h1>
+        <div style="background: rgba(0,0,0,0.5); padding: 20px; border: 2px solid #666; margin-bottom: 20px;">
+            <p style="color: #aaa;">最終獲得經驗值</p>
+            <p id="final-xp" style="font-size: 48px; color: #76ff03; margin: 0;">0</p>
+        </div>
+        <button class="btn" style="text-align: center;" onclick="showStartScreen()">回到主選單</button>
+    </div>
+
+    <script>
+        // --- 2. 遊戲邏輯 (JavaScript) ---
+
+        // 預設題庫 (可以在這裡直接修改預設題目)
+        const DEFAULT_QUESTIONS = [
+            {
+                question: "「頑皮的風把樹葉吹得跳起舞來。」使用了哪種修辭？",
+                options: ["排比修辭", "擬人修辭", "譬喻修辭"],
+                correctAnswer: 1, 
+                monsterName: "Lv.3 骷髏射手"
+            },
+            {
+                question: "請計算 4.2 + 0.02 = ?",
+                options: ["4.4", "4.202", "4.22"],
+                correctAnswer: 2,
+                monsterName: "Lv.5 洞穴蜘蛛"
+            },
+            {
+                question: "在充滿水的游泳池說話，岸上的人為何聽不清楚？",
+                options: ["水吸收了聲音", "液體傳聲效果最差", "空氣傳聲比水快"],
+                correctAnswer: 0,
+                monsterName: "Lv.10 終界龍"
+            }
+        ];
+
+        let questions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS));
+        let currentState = {
+            hp: 5,
+            xp: 0,
+            qIndex: 0,
+            isLocked: false // 防止連點
+        };
+
+        // 內建的 SVG 圖示 (避免外部載入失敗)
+        const SVGS = {
+            skull: `<svg class="monster-svg" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="M12.5 17l-.5-4"/><path d="M16 20a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20"/></svg>`,
+            ghost: `<svg class="monster-svg" viewBox="0 0 24 24" fill="none" stroke="#ff5252" stroke-width="2"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/></svg>`,
+            dragon: `<svg class="monster-svg" viewBox="0 0 24 24" fill="none" stroke="#e040fb" stroke-width="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`
+        };
+
+        // --- 畫面切換與核心功能 ---
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showStartScreen() {
+            switchScreen('screen-start');
+            document.getElementById('question-count-display').textContent = `目前題庫數：${questions.length} 題`;
+        }
+
+        function showImportScreen() {
+            switchScreen('screen-import');
+        }
+
+        // --- 智慧匯入邏輯 (增強版) ---
+        function processImport() {
+            const input = document.getElementById('json-input').value;
+            try {
+                // 1. 抓取 JSON 陣列部分 (忽略 NotebookLM 可能產生的額外解釋文字)
+                const jsonMatch = input.match(/\[[\s\S]*\]/);
+                if (!jsonMatch) throw new Error("找不到 [ ] 包裹的題目資料");
+                
+                let cleanJson = jsonMatch[0];
+                
+                // 2. 解析 JSON
+                const parsed = JSON.parse(cleanJson);
+                
+                // 3. 驗證格式
+                if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("格式錯誤：必須是陣列");
+                if (!parsed[0].question || !parsed[0].options) throw new Error("格式錯誤：找不到題目(question)或選項(options)");
+                
+                questions = parsed;
+                alert(`成功載入 ${questions.length} 題！`);
+                showStartScreen();
+            } catch (e) {
+                alert("匯入失敗！請確認格式是否正確。\n錯誤訊息: " + e.message);
+            }
+        }
+
+        function startGame() {
+            currentState = { hp: 5, xp: 0, qIndex: 0, isLocked: false };
+            updateGameUI();
+            switchScreen('screen-game');
+        }
+
+        function updateGameUI() {
+            const q = questions[currentState.qIndex];
+            
+            // 更新狀態列
+            let heartsHtml = '';
+            for(let i=0; i<5; i++) {
+                heartsHtml += i < currentState.hp ? '<span style="color:#f44336">❤</span>' : '<span style="color:#555">❤</span>';
+            }
+            document.getElementById('hearts-container').innerHTML = heartsHtml;
+            document.getElementById('xp-display').textContent = `XP: ${currentState.xp}`;
+
+            // 更新怪物與題目
+            document.getElementById('monster-name').textContent = q.monsterName || "未知怪物";
+            document.getElementById('q-text').textContent = q.question;
+            
+            // 隨機選擇怪物圖示
+            const types = ['skull', 'ghost', 'dragon'];
+            // 簡單的雜湊算法確保同一題出現同一隻怪
+            const typeIndex = (q.monsterName || "").length % 3; 
+            const type = types[typeIndex]; 
+            document.getElementById('monster-visual').innerHTML = SVGS[type];
+
+            // 生成選項按鈕
+            const optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.textContent = `${idx + 1}. ${opt}`;
+                btn.onclick = () => handleAnswer(idx, btn);
+                optsContainer.appendChild(btn);
+            });
+
+            document.getElementById('hit-feedback').classList.add('hidden');
+        }
+
+        function handleAnswer(selectedIndex, btnElement) {
+            if (currentState.isLocked) return;
+            currentState.isLocked = true;
+
+            const q = questions[currentState.qIndex];
+            const isCorrect = selectedIndex === q.correctAnswer;
+
+            if (isCorrect) {
+                // 答對: 變綠、加分、特效
+                btnElement.style.backgroundColor = '#2e7d32'; 
+                btnElement.style.borderColor = '#00ff00';
+                currentState.xp += 100;
+                
+                const hitEffect = document.getElementById('hit-feedback');
+                hitEffect.classList.remove('hidden');
+                
+                // 怪物閃爍效果
+                const monster = document.getElementById('monster-visual');
+                monster.style.opacity = '0';
+                setTimeout(() => monster.style.opacity = '1', 100);
+                setTimeout(() => monster.style.opacity = '0', 200);
+                setTimeout(() => monster.style.opacity = '1', 300);
+
+            } else {
+                // 答錯: 變紅、震動、扣血
+                btnElement.style.backgroundColor = '#b71c1c';
+                btnElement.style.borderColor = '#ff0000';
+                document.body.classList.add('shake');
+                currentState.hp -= 1;
+                
+                setTimeout(() => document.body.classList.remove('shake'), 500);
+            }
+
+            // 結算與換題延遲
+            setTimeout(() => {
+                if (currentState.hp <= 0) {
+                    endGame(false);
+                } else if (isCorrect) {
+                    if (currentState.qIndex + 1 >= questions.length) {
+                        endGame(true);
+                    } else {
+                        currentState.qIndex++;
+                        updateGameUI();
+                    }
+                } else {
+                    // 答錯但未死，刷新 UI 重置按鈕顏色
+                    updateGameUI();
+                }
+                currentState.isLocked = false;
+            }, 1000);
+        }
+
+        function endGame(isWin) {
+            switchScreen('screen-end');
+            const title = document.getElementById('end-title');
+            title.textContent = isWin ? "試煉完成！" : "你失敗了...";
+            title.style.color = isWin ? "#ffd700" : "#f44336";
+            document.getElementById('final-xp').textContent = currentState.xp;
+        }
+
+        // 啟動遊戲
+        showStartScreen();
+
+    </script>
+</body>
+</html>
+
+
