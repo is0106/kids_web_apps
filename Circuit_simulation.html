@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鎢絲燈泡電路模擬器 (離線版)</title>
+    <style>
+        /* --- 基礎樣式 --- */
+        :root {
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --primary: #3b82f6;
+            --primary-light: #eff6ff;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #eab308;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-sub);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* --- 控制面板 --- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: #fff;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-info { background: var(--primary-light); color: #1e40af; border-color: #bfdbfe; }
+        .btn-reset { background: #e2e8f0; color: #475569; }
+        .btn-correct { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .btn-warn { background: #fef9c3; color: #854d0e; border-color: #fde047; }
+        .btn-danger { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+        .divider { width: 1px; background: #cbd5e1; height: 24px; margin: 0 8px; }
+
+        /* --- 畫布區域 --- */
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            aspect-ratio: 16/9;
+            background: var(--panel-bg);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            touch-action: none; /* 防止手機滑動頁面 */
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* --- 狀態提示 --- */
+        #status-indicator {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            pointer-events: none;
+            display: none; /* JS 控制顯示 */
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .status-on { background: #facc15; color: #713f12; animation: pulse 2s infinite; }
+        .status-short { background: #ef4444; color: white; animation: bounce 0.5s infinite; }
+        .status-off { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+
+        /* --- SVG 元素樣式 --- */
+        .cursor-grab { cursor: grab; }
+        .cursor-grabbing { cursor: grabbing; }
+        .cursor-crosshair { cursor: crosshair; }
+        
+        .wire-path { stroke-linecap: round; transition: stroke 0.3s; }
+        .wire-delete-btn { opacity: 0; transition: opacity 0.2s; cursor: pointer; }
+        .wire-group:hover .wire-delete-btn { opacity: 1; }
+        .wire-group:hover .wire-path { stroke: #dc2626; } /* Hover red */
+
+        text { user-select: none; font-family: sans-serif; }
+
+        /* --- Modal 彈窗 --- */
+        #help-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 50;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            animation: zoomIn 0.2s ease-out;
+        }
+
+        .modal-header {
+            background: var(--primary-light);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #bfdbfe;
+        }
+
+        .modal-header h3 { margin: 0; color: #1e40af; font-size: 1.2rem; }
+        .close-btn { background: none; border: none; font-size: 1.5rem; color: #64748b; padding: 0; cursor: pointer; }
+
+        .modal-body { padding: 24px; }
+        .step { display: flex; gap: 12px; margin-bottom: 16px; }
+        .step-num { 
+            width: 32px; height: 32px; background: var(--primary-light); color: var(--primary); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; flex-shrink: 0;
+        }
+        .step h4 { margin: 0 0 4px 0; color: var(--text-main); }
+        .step p { margin: 0; font-size: 0.9rem; color: var(--text-sub); line-height: 1.4; }
+
+        .modal-footer {
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+            text-align: right;
+        }
+
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-primary:hover { background: #2563eb; }
+
+        /* Animations */
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .footer-note { margin-top: 20px; font-size: 0.9rem; color: var(--text-sub); }
+    </style>
+</head>
+<body>
+
+    <h1>💡 鎢絲燈泡電路模擬器</h1>
+    <p class="subtitle">拖曳元件調整位置，並連接電線觀察燈泡是否發亮！</p>
+
+    <!-- 功能按鈕 -->
+    <div class="controls">
+        <button class="btn-info" onclick="toggleHelp(true)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            操作說明
+        </button>
+        <div class="divider"></div>
+        <button class="btn-reset" onclick="resetSim()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            清除重置
+        </button>
+        <button class="btn-correct" onclick="loadPreset('correct')">✅ 正確通路</button>
+        <button class="btn-warn" onclick="loadPreset('short_bulb')">⚠️ 連接錯誤</button>
+        <button class="btn-danger" onclick="loadPreset('short_bat')">🔥 電池短路</button>
+    </div>
+
+    <!-- 模擬區域 -->
+    <div id="canvas-container">
+        <!-- 狀態顯示 -->
+        <div id="status-indicator"></div>
+
+        <svg id="main-svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
+            <defs>
+                <radialGradient id="glowGradient" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0%" stop-color="#FACC15" stop-opacity="0.8" />
+                    <stop offset="100%" stop-color="#FACC15" stop-opacity="0" />
+                </radialGradient>
+            </defs>
+
+            <!-- Wires Layer -->
+            <g id="layer-wires"></g>
+
+            <!-- Drag Line -->
+            <line id="drag-line" x1="0" y1="0" x2="0" y2="0" stroke="#EF4444" stroke-width="4" stroke-dasharray="5,5" opacity="0.6" visibility="hidden" pointer-events="none" />
+
+            <!-- Components Layer -->
+            <g id="layer-components">
+                <!-- Battery Group -->
+                <g id="battery-group" class="cursor-grab">
+                    <rect x="0" y="20" width="100" height="260" rx="8" fill="#334155" />
+                    <rect x="0" y="50" width="100" height="200" fill="#FACC15" />
+                    <text x="50" y="150" text-anchor="middle" font-size="24" font-weight="bold" fill="#B45309" transform="rotate(-90, 50, 150)">BATTERY</text>
+                    <rect x="25" y="-10" width="50" height="30" rx="4" fill="#94A3B8" />
+                    <circle cx="50" cy="20" r="10" fill="#EF4444" opacity="0.8" />
+                    <text x="50" y="-25" text-anchor="middle" font-size="30" font-weight="bold" fill="#EF4444">+</text>
+                    <rect x="10" y="270" width="80" height="10" fill="#94A3B8" />
+                    <text x="50" y="320" text-anchor="middle" font-size="40" font-weight="bold" fill="#334155">-</text>
+
+                    <!-- Connection Points -->
+                    <g class="node-target" data-node="batPos">
+                        <circle cx="50" cy="20" r="25" fill="transparent" />
+                        <circle id="node-batPos-visual" cx="50" cy="20" r="15" fill="white" stroke="#2563EB" stroke-width="3" />
+                    </g>
+                    <g class="node-target" data-node="batNeg">
+                        <circle cx="50" cy="320" r="25" fill="transparent" />
+                        <circle id="node-batNeg-visual" cx="50" cy="320" r="15" fill="white" stroke="#2563EB" stroke-width="3" />
+                    </g>
+                </g>
+
+                <!-- Bulb Group -->
+                <g id="bulb-group" class="cursor-grab">
+                    <!-- Glass -->
+                    <path id="bulb-glass" d="M 50 200 C 10 200 0 100 50 0 C 100 100 90 200 50 200" fill="#E2E8F0" stroke="#94A3B8" stroke-width="2" />
+                    <!-- Filament -->
+                    <path d="M 35 200 L 35 120 L 45 100 L 55 120 L 65 100 L 65 200" fill="none" stroke="#64748B" stroke-width="2" />
+                    <!-- Glow -->
+                    <circle id="bulb-glow" cx="50" cy="80" r="60" fill="url(#glowGradient)" opacity="0" />
+                    <!-- Base -->
+                    <path d="M 30 200 L 70 200 L 70 260 L 30 260 Z" fill="#CBD5E1" stroke="#64748B" stroke-width="2" />
+                    <line x1="30" y1="215" x2="70" y2="215" stroke="#64748B" stroke-width="2" />
+                    <line x1="30" y1="230" x2="70" y2="230" stroke="#64748B" stroke-width="2" />
+                    <line x1="30" y1="245" x2="70" y2="245" stroke="#64748B" stroke-width="2" />
+                    <path d="M 35 260 L 65 260 L 60 275 L 40 275 Z" fill="#0F172A" />
+                    <circle cx="50" cy="280" r="8" fill="#94A3B8" stroke="#475569" stroke-width="2" />
+
+                    <!-- Connection Points -->
+                    <g class="node-target" data-node="bulbSide">
+                        <circle cx="50" cy="230" r="25" fill="transparent" />
+                        <circle id="node-bulbSide-visual" cx="50" cy="230" r="15" fill="white" stroke="#2563EB" stroke-width="3" />
+                    </g>
+                    <g class="node-target" data-node="bulbTip">
+                        <circle cx="50" cy="280" r="25" fill="transparent" />
+                        <circle id="node-bulbTip-visual" cx="50" cy="280" r="15" fill="white" stroke="#2563EB" stroke-width="3" />
+                    </g>
+                </g>
+            </g>
+        </svg>
+    </div>
+
+    <div class="footer-note">
+        提示：電流必須從電池流出，經過燈泡內部的燈絲，再流回電池，才能形成完整通路喔！
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ℹ️ 操作說明</h3>
+                <button class="close-btn" onclick="toggleHelp(false)">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div>
+                        <h4>自由移動</h4>
+                        <p>按住電池或燈泡，可以拖曳到您喜歡的位置。</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div>
+                        <h4>連接電線</h4>
+                        <p>從元件的<strong style="color:var(--primary)">藍色圓點</strong>接頭拖曳出一條線，連接到另一個接頭。<br>(接近時接頭會變綠色)</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div>
+                        <h4>拆除電線</h4>
+                        <p>將滑鼠移到電線上，點擊出現的 <strong>✕</strong> 圓圈即可移除。</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="toggleHelp(false)" style="padding:8px 24px; border-radius:6px; cursor:pointer;">開始實驗！</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        const state = {
+            wires: [],
+            positions: {
+                battery: { x: 150, y: 150 },
+                bulb: { x: 550, y: 150 }
+            },
+            simState: 'off',
+            drag: {
+                active: false,
+                type: null, // 'component' or 'wire'
+                targetId: null, // 'battery', 'bulb' or node ID
+                startPos: { x: 0, y: 0 },
+                offset: { x: 0, y: 0 }
+            },
+            hoverNode: null
+        };
+
+        // --- DOM Elements ---
+        const svg = document.getElementById('main-svg');
+        const wiresLayer = document.getElementById('layer-wires');
+        const batteryGroup = document.getElementById('battery-group');
+        const bulbGroup = document.getElementById('bulb-group');
+        const dragLine = document.getElementById('drag-line');
+        const statusEl = document.getElementById('status-indicator');
+        const bulbGlass = document.getElementById('bulb-glass');
+        const bulbGlow = document.getElementById('bulb-glow');
+
+        // --- Constants ---
+        // Relative positions of nodes inside their groups
+        const nodeOffsets = {
+            battery: {
+                batPos: { x: 50, y: 20 },
+                batNeg: { x: 50, y: 320 }
+            },
+            bulb: {
+                bulbSide: { x: 50, y: 230 },
+                bulbTip: { x: 50, y: 280 }
+            }
+        };
+
+        // --- Initial Render ---
+        updateComponentTransforms();
+        
+        // --- Event Listeners ---
+        // We use pointer events for unified mouse/touch handling
+        svg.addEventListener('pointerdown', handleDown);
+        svg.addEventListener('pointermove', handleMove);
+        svg.addEventListener('pointerup', handleUp);
+        svg.addEventListener('pointerleave', handleUp);
+
+        // --- Core Logic Functions ---
+
+        function getMousePos(e) {
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            return pt.matrixTransform(svg.getScreenCTM().inverse());
+        }
+
+        function getNodeAbsPosition(nodeId) {
+            // Determine parent component
+            const comp = (nodeId === 'batPos' || nodeId === 'batNeg') ? 'battery' : 'bulb';
+            const base = state.positions[comp];
+            const offset = nodeOffsets[comp][nodeId];
+            return { x: base.x + offset.x, y: base.y + offset.y };
+        }
+
+        // --- Interaction Handlers ---
+
+        function handleDown(e) {
+            const pos = getMousePos(e);
+            const target = e.target;
+            
+            // Check for Wire Delete Button click
+            const delBtn = target.closest('.wire-delete-trigger');
+            if (delBtn) {
+                const id = parseInt(delBtn.dataset.id);
+                removeWire(id);
+                return;
+            }
+
+            // Check for Node click (Start Wire)
+            const nodeEl = target.closest('.node-target');
+            if (nodeEl) {
+                e.preventDefault();
+                state.drag.active = true;
+                state.drag.type = 'wire';
+                state.drag.targetId = nodeEl.dataset.node; // Start Node ID
+                state.drag.startPos = getNodeAbsPosition(state.drag.targetId);
+                
+                dragLine.setAttribute('x1', state.drag.startPos.x);
+                dragLine.setAttribute('y1', state.drag.startPos.y);
+                dragLine.setAttribute('x2', state.drag.startPos.x);
+                dragLine.setAttribute('y2', state.drag.startPos.y);
+                dragLine.style.visibility = 'visible';
+                return;
+            }
+
+            // Check for Component click (Move Component)
+            const batEl = target.closest('#battery-group');
+            const bulbEl = target.closest('#bulb-group');
+            
+            if (batEl || bulbEl) {
+                e.preventDefault();
+                state.drag.active = true;
+                state.drag.type = 'component';
+                state.drag.targetId = batEl ? 'battery' : 'bulb';
+                
+                const currPos = state.positions[state.drag.targetId];
+                state.drag.offset = {
+                    x: pos.x - currPos.x,
+                    y: pos.y - currPos.y
+                };
+                
+                // Set cursor styles
+                if(batEl) batEl.classList.add('cursor-grabbing');
+                if(bulbEl) bulbEl.classList.add('cursor-grabbing');
+            }
+        }
+
+        function handleMove(e) {
+            if (!state.drag.active) {
+                // Hover effect logic for wire targets
+                const nodeEl = e.target.closest('.node-target');
+                if (nodeEl) {
+                   // Optional: highlight logic if needed apart from CSS
+                }
+                return;
+            }
+
+            const pos = getMousePos(e);
+
+            if (state.drag.type === 'component') {
+                const comp = state.drag.targetId;
+                state.positions[comp].x = pos.x - state.drag.offset.x;
+                state.positions[comp].y = pos.y - state.drag.offset.y;
+                updateComponentTransforms();
+                renderWires(); // Wires need to move with component
+            } 
+            else if (state.drag.type === 'wire') {
+                dragLine.setAttribute('x2', pos.x);
+                dragLine.setAttribute('y2', pos.y);
+
+                // Highlight proximity target
+                const nodes = ['batPos', 'batNeg', 'bulbSide', 'bulbTip'];
+                let found = null;
+                
+                nodes.forEach(nId => {
+                    if (nId === state.drag.targetId) return; // Can't connect to self
+                    const nPos = getNodeAbsPosition(nId);
+                    const dist = Math.hypot(nPos.x - pos.x, nPos.y - pos.y);
+                    if (dist < 40) found = nId;
+                });
+
+                updateNodeHighlights(state.drag.targetId, found);
+            }
+        }
+
+        function handleUp(e) {
+            if (!state.drag.active) return;
+
+            const pos = getMousePos(e);
+
+            if (state.drag.type === 'wire') {
+                dragLine.style.visibility = 'hidden';
+                updateNodeHighlights(null, null); // Clear highlights
+
+                // Check connection
+                const nodes = ['batPos', 'batNeg', 'bulbSide', 'bulbTip'];
+                let targetNode = null;
+                
+                nodes.forEach(nId => {
+                    if (nId === state.drag.targetId) return;
+                    const nPos = getNodeAbsPosition(nId);
+                    const dist = Math.hypot(nPos.x - pos.x, nPos.y - pos.y);
+                    if (dist < 40) targetNode = nId;
+                });
+
+                if (targetNode) {
+                    addWire(state.drag.targetId, targetNode);
+                }
+            } 
+            else if (state.drag.type === 'component') {
+                document.getElementById('battery-group').classList.remove('cursor-grabbing');
+                document.getElementById('bulb-group').classList.remove('cursor-grabbing');
+            }
+
+            state.drag.active = false;
+            state.drag.type = null;
+            state.drag.targetId = null;
+        }
+
+        // --- Rendering & Logic ---
+
+        function updateComponentTransforms() {
+            const { battery, bulb } = state.positions;
+            batteryGroup.setAttribute('transform', `translate(${battery.x}, ${battery.y})`);
+            bulbGroup.setAttribute('transform', `translate(${bulb.x}, ${bulb.y})`);
+        }
+
+        function updateNodeHighlights(startNode, hoverNode) {
+            const allVisuals = document.querySelectorAll('.node-target circle[id$="-visual"]');
+            allVisuals.forEach(el => {
+                el.setAttribute('stroke', '#2563EB'); // Default Blue
+                el.setAttribute('fill', 'white');
+            });
+
+            if (startNode) {
+                document.getElementById(`node-${startNode}-visual`).setAttribute('fill', '#3B82F6');
+            }
+            if (hoverNode) {
+                const el = document.getElementById(`node-${hoverNode}-visual`);
+                el.setAttribute('stroke', '#22c55e'); // Green
+                el.setAttribute('fill', '#dcfce7');
+            }
+        }
+
+        function addWire(start, end) {
+            // Check duplicate
+            const exists = state.wires.some(w => 
+                (w.start === start && w.end === end) || (w.start === end && w.end === start)
+            );
+            if (!exists) {
+                state.wires.push({ id: Date.now(), start, end });
+                renderWires();
+                checkCircuit();
+            }
+        }
+
+        function removeWire(id) {
+            state.wires = state.wires.filter(w => w.id !== id);
+            renderWires();
+            checkCircuit();
+        }
+
+        function renderWires() {
+            wiresLayer.innerHTML = '';
+            state.wires.forEach(w => {
+                const start = getNodeAbsPosition(w.start);
+                const end = getNodeAbsPosition(w.end);
+                
+                const midX = (start.x + end.x) / 2;
+                const midY = (start.y + end.y) / 2 + 50; // Curve
+
+                const d = `M ${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`;
+                const color = state.simState === 'short' ? '#EF4444' : '#EF4444';
+
+                // Group for hover effect
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", "wire-group");
+
+                // 1. Invisible thick hit area
+                const hitPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                hitPath.setAttribute("d", d);
+                hitPath.setAttribute("fill", "none");
+                hitPath.setAttribute("stroke", "transparent");
+                hitPath.setAttribute("stroke-width", "25");
+                g.appendChild(hitPath);
+
+                // 2. Visible wire
+                const visualPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                visualPath.setAttribute("d", d);
+                visualPath.setAttribute("fill", "none");
+                visualPath.setAttribute("stroke", color);
+                visualPath.setAttribute("stroke-width", "6");
+                visualPath.setAttribute("class", "wire-path");
+                g.appendChild(visualPath);
+
+                // 3. Delete button (Group)
+                const btnG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                btnG.setAttribute("class", "wire-delete-btn wire-delete-trigger");
+                btnG.setAttribute("data-id", w.id);
+                
+                const btnCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                btnCircle.setAttribute("cx", (start.x + end.x) / 2);
+                btnCircle.setAttribute("cy", (start.y + end.y) / 2);
+                btnCircle.setAttribute("r", "12");
+                btnCircle.setAttribute("fill", "white");
+                btnCircle.setAttribute("stroke", "#CBD5E1");
+
+                const btnText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                btnText.setAttribute("x", (start.x + end.x) / 2);
+                btnText.setAttribute("y", (start.y + end.y) / 2 + 5);
+                btnText.setAttribute("text-anchor", "middle");
+                btnText.setAttribute("fill", "#64748B");
+                btnText.setAttribute("font-weight", "bold");
+                btnText.textContent = "✕";
+
+                btnG.appendChild(btnCircle);
+                btnG.appendChild(btnText);
+                g.appendChild(btnG);
+
+                wiresLayer.appendChild(g);
+            });
+        }
+
+        function checkCircuit() {
+            // Adjacency List
+            const adj = { batPos: [], batNeg: [], bulbTip: [], bulbSide: [] };
+            state.wires.forEach(w => {
+                adj[w.start].push(w.end);
+                adj[w.end].push(w.start);
+            });
+
+            // DFS Helper
+            const hasPath = (start, end, visited = new Set()) => {
+                if (start === end) return true;
+                visited.add(start);
+                for (let neighbor of adj[start]) {
+                    if (!visited.has(neighbor)) {
+                        if (hasPath(neighbor, end, visited)) return true;
+                    }
+                }
+                return false;
+            };
+
+            const posToTip = hasPath('batPos', 'bulbTip');
+            const negToSide = hasPath('batNeg', 'bulbSide');
+            const posToSide = hasPath('batPos', 'bulbSide');
+            const negToTip = hasPath('batNeg', 'bulbTip');
+            const shortCircuit = hasPath('batPos', 'batNeg');
+
+            let isLit = ((posToTip && negToSide) || (posToSide && negToTip));
+            let isShort = shortCircuit; // Simplified logic
+
+            // Update State
+            if (isLit) state.simState = isShort ? 'short' : 'on';
+            else state.simState = isShort ? 'short' : 'off';
+
+            // Update UI
+            updateUI();
+        }
+
+        function updateUI() {
+            // Status Indicator
+            statusEl.style.display = 'flex';
+            statusEl.className = '';
+            
+            if (state.simState === 'on') {
+                statusEl.innerHTML = `<span>💡</span> 燈泡亮了！`;
+                statusEl.classList.add('status-on');
+                // Bulb Effects
+                bulbGlass.setAttribute('fill', '#FEF08A');
+                bulbGlass.setAttribute('stroke', '#EAB308');
+                bulbGlow.setAttribute('opacity', '0.6');
+            } else if (state.simState === 'short') {
+                statusEl.innerHTML = `<span>⚡</span> 短路危險！`;
+                statusEl.classList.add('status-short');
+                // Bulb Effects
+                bulbGlass.setAttribute('fill', '#E2E8F0');
+                bulbGlass.setAttribute('stroke', '#94A3B8');
+                bulbGlow.setAttribute('opacity', '0');
+            } else {
+                if(state.wires.length > 0) {
+                    statusEl.innerHTML = `<span>⚠️</span> 未形成通路`;
+                    statusEl.classList.add('status-off');
+                } else {
+                    statusEl.style.display = 'none';
+                }
+                // Bulb Effects
+                bulbGlass.setAttribute('fill', '#E2E8F0');
+                bulbGlass.setAttribute('stroke', '#94A3B8');
+                bulbGlow.setAttribute('opacity', '0');
+            }
+
+            // Re-render wires to update colors
+            renderWires();
+        }
+
+        // --- Controls ---
+
+        function loadPreset(type) {
+            state.wires = [];
+            state.positions = { battery: { x: 150, y: 150 }, bulb: { x: 550, y: 150 } };
+            
+            // Wait slightly for visual reset
+            updateComponentTransforms();
+            renderWires();
+            checkCircuit();
+
+            setTimeout(() => {
+                const now = Date.now();
+                if (type === 'correct') {
+                    state.wires = [
+                        { id: now, start: 'batPos', end: 'bulbTip' },
+                        { id: now+1, start: 'batNeg', end: 'bulbSide' }
+                    ];
+                } else if (type === 'short_bulb') {
+                    state.wires = [
+                        { id: now, start: 'batPos', end: 'bulbSide' },
+                        { id: now+1, start: 'batNeg', end: 'bulbSide' }
+                    ];
+                } else if (type === 'short_bat') {
+                    state.wires = [{ id: now, start: 'batPos', end: 'batNeg' }];
+                }
+                renderWires();
+                checkCircuit();
+            }, 50);
+        }
+
+        function resetSim() {
+            state.wires = [];
+            state.simState = 'off';
+            state.positions = { battery: { x: 150, y: 150 }, bulb: { x: 550, y: 150 } };
+            updateComponentTransforms();
+            renderWires();
+            checkCircuit();
+        }
+
+        function toggleHelp(show) {
+            const modal = document.getElementById('help-modal');
+            modal.style.display = show ? 'flex' : 'none';
+        }
+        
+        // Auto open help on first load? 
+        // toggleHelp(true);
+    </script>
+</body>
+</html>
+
